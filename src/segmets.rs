@@ -10,7 +10,7 @@ use std::{
 use syn::Ident;
 
 #[derive(Debug)]
-pub struct Segments {
+pub struct Routes {
     inner: Vec<Segment>,
 }
 
@@ -19,14 +19,14 @@ pub enum Segment {
     Folder {
         name: String,
         path: String,
-        sub: Segments,
+        sub: Routes,
     },
     Handler {
         name: String,
     },
 }
 
-impl Segments {
+impl Routes {
     pub fn new(folder: impl Into<PathBuf>) -> Result<Self> {
         let mut inner = Vec::new();
 
@@ -36,7 +36,12 @@ impl Segments {
         for entry in entries {
             let file_type = entry.file_type()?;
 
-            let file_path = entry.file_name().into_string().map_err(|_| eyre!(""))?;
+            let file_path = entry.file_name().into_string().map_err(|_| {
+                eyre!(
+                    "Invalid filename {file}",
+                    file = entry.file_name().display()
+                )
+            })?;
 
             if file_type.is_dir() {
                 let name = String::from(file_path.trim_matches(|char| char == '{' || char == '}'));
@@ -86,7 +91,7 @@ impl ToTokens for Segment {
     }
 }
 
-impl ToTokens for Segments {
+impl ToTokens for Routes {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let segments = &self.inner;
         tokens.extend(quote! { #(#segments)* });
@@ -116,7 +121,7 @@ impl Segment {
     }
 }
 
-impl Segments {
+impl Routes {
     pub fn to_router(&self) -> TokenStream {
         let streams = self
             .inner
